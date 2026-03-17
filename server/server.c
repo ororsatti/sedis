@@ -5,61 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/_types/_socklen_t.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "cmd.h"
 
 #define PORT "6378"
 #define BACKLOG 5
 
 int MAX = 1024;
 
-const char *inet_ntop2(void *addr, char *buf, size_t size) {
-  struct sockaddr_storage *sas = addr;
-  struct sockaddr_in *sa4;
-  struct sockaddr_in6 *sa6;
-  void *src;
-
-  switch (sas->ss_family) {
-  case AF_INET:
-    sa4 = addr;
-    src = &(sa4->sin_addr);
-    break;
-  case AF_INET6:
-    sa6 = addr;
-    src = &(sa6->sin6_addr);
-    break;
-  default:
-    return NULL;
-  }
-
-  return inet_ntop(sas->ss_family, src, buf, size);
-}
-
-void handle_existing_client(int cli_fd, fd_set *p_master) {
-  printf("Handling client: %d\n", cli_fd);
-
-  char buf[MAX];
-  int nbytes;
-  bzero(buf, sizeof(buf));
-
-  if ((nbytes = recv(cli_fd, buf, sizeof(buf), 0)) <= 0) {
-    if (nbytes == 0) {
-      printf("sedis: connection closed: %d\n", cli_fd);
-    } else {
-      perror("recv");
-    }
-
-    FD_CLR(cli_fd, p_master);
-    close(cli_fd);
-    return;
-  }
-
-  send(cli_fd, buf, nbytes, 0);
-}
-
-int get_server_sock() {
+int get_server_sock(void) {
   struct addrinfo hints = {
       .ai_flags = AI_PASSIVE,
       .ai_socktype = SOCK_STREAM,
@@ -105,6 +62,36 @@ int get_server_sock() {
   return listenerfd;
 }
 
+void handle_existing_client(int cli_fd, fd_set *p_master) {
+  char buf[MAX];
+  int nbytes, rv;
+  bzero(buf, sizeof(buf));
+
+  if ((nbytes = recv(cli_fd, buf, sizeof(buf), 0)) <= 0) {
+    if (nbytes == 0) {
+      printf("sedis: connection closed: %d\n", cli_fd);
+    } else {
+      perror("recv");
+    }
+
+    FD_CLR(cli_fd, p_master);
+    close(cli_fd);
+    return;
+  }
+
+  Cmd cmd = {0};
+  if (!cmd_parse(buf, nbytes, &cmd)) {
+    perror("parse cmd");
+    return;
+  }
+  printf("CMD TYPE: %d, ARGS COUNT: %zu\n", cmd.type, cmd.args.size);
+
+  if (cmd.type == PING) {
+    char *pong = "+PONG\r\n";
+    send(cli_fd, pong, strlen(pong), 0);
+  }
+}
+
 void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd) {
   struct sockaddr_storage addr;
   socklen_t addr_len = sizeof(addr);
@@ -120,14 +107,10 @@ void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd) {
     *p_max_fd = conn_fd;
   }
 
-  char remoteIP[INET6_ADDRSTRLEN];
-  printf("sodis: new connection from %s on "
-         "socket %d\n",
-         inet_ntop2(&addr, remoteIP, sizeof remoteIP), conn_fd);
+  handle_existing_client(conn_fd, p_master);
 }
 
-int main() {
-
+int main(void) {
   fd_set master, read_fds;
 
   FD_ZERO(&master);
