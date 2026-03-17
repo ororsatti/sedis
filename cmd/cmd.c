@@ -172,29 +172,3 @@ bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len) {
 
   return true;
 }
-
-// int main(void) {
-//   Cmd cmd = {0};
-//   Arg arg = {0};
-//
-//   arg.size = strlcpy(arg.value, "SET", MAX_TOK_SIZE);
-//   arg.type = STRING;
-//   dyarray_push(&cmd.args, arg);
-//
-//   arg.size = strlcpy(arg.value, "goofy", MAX_TOK_SIZE);
-//   arg.type = STRING;
-//   dyarray_push(&cmd.args, arg);
-//
-//   long val = 123;
-//   memcpy(arg.value, &val, sizeof(long));
-//   arg.size = sizeof(long);
-//   arg.type = NUMBER;
-//   dyarray_push(&cmd.args, arg);
-//
-//   char buf[MAXDATASIZE] = {0};
-//   cmd_printable(&cmd, buf, MAXDATASIZE);
-//
-//   printf("%s\n", buf);
-//
-//   return 0;
-// }
