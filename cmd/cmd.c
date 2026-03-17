@@ -55,14 +55,14 @@ int _cmd_parse_int(char *str, size_t str_len) {
   return val;
 }
 
-long _arg_number_value(Arg *arg) {
+long arg_number_value(Arg *arg) {
   long val = -1;
   memcpy(&val, arg->value, arg->size);
 
   return val;
 }
 
-char *_arg_string_value(Arg *arg) { return arg->value; }
+char *arg_string_value(Arg *arg) { return arg->value; }
 
 bool cmd_parse(char *src, size_t src_len, Cmd *out_cmd) {
   char tok[MAX_TOK_SIZE] = {0};
@@ -122,7 +122,7 @@ bool _arg_serialize(Arg *arg, char *dst, size_t dst_len) {
 
   int rv = 0;
   if (arg->type == NUMBER) {
-    rv = snprintf(buf, sizeof(buf), ":%ld%s", _arg_number_value(arg), CLRF);
+    rv = snprintf(buf, sizeof(buf), ":%ld%s", arg_number_value(arg), CLRF);
   } else {
     rv = snprintf(buf, sizeof(buf), "$%zu%s%s%s", arg->size, CLRF, arg->value,
                   CLRF);
@@ -161,11 +161,11 @@ bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len) {
     Arg arg = cmd->args[i];
 
     if (arg.type == STRING) {
-      if (strlcat(buf, _arg_string_value(&arg), buf_len) >= buf_len) {
+      if (strlcat(buf, arg_string_value(&arg), buf_len) >= buf_len) {
         return false;
       }
     } else if (arg.type == NUMBER) {
-      snprintf(buf, buf_len, "%s%ld", buf, _arg_number_value(&arg));
+      snprintf(buf, buf_len, "%s%ld", buf, arg_number_value(&arg));
     }
     strlcat(buf, " ", buf_len);
   }

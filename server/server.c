@@ -14,8 +14,16 @@
 
 #define PORT "6378"
 #define BACKLOG 5
+#define MAXDATASIZE 1024
 
-int MAX = 1024;
+typedef struct Num_Map {
+  char *key;
+  long value;
+} Num_Map;
+
+typedef struct Context {
+  Num_Map *num_map;
+} Context;
 
 int get_server_sock(void) {
   struct addrinfo hints = {
@@ -63,8 +71,8 @@ int get_server_sock(void) {
   return listenerfd;
 }
 
-void handle_existing_client(int cli_fd, fd_set *p_master) {
-  char buf[MAX];
+void handle_existing_client(int cli_fd, fd_set *p_master, Context ctx) {
+  char buf[MAXDATASIZE];
   int nbytes, rv;
   bzero(buf, sizeof(buf));
 
@@ -92,10 +100,44 @@ void handle_existing_client(int cli_fd, fd_set *p_master) {
     send(cli_fd, pong, strlen(pong), 0);
   }
 
+  if (strncmp(cmd.args[0].value, "SET", cmd.args[0].size) == 0) {
+    if (arrlen(cmd.args) != 3) {
+      char *err = "*1\r\n-ERR wrong amount of args\r\n";
+      send(cli_fd, err, strlen(err), 0);
+    } else {
+      shput(ctx.num_map, cmd.args[1].value, arg_number_value(&cmd.args[2]));
+      char *resp = "*1\r\n+OK\r\n";
+      send(cli_fd, resp, strlen(resp), 0);
+    }
+  }
+
+  if (strncmp(cmd.args[0].value, "GET", cmd.args[0].size) == 0) {
+    if (arrlen(cmd.args) != 2) {
+      char *err = "*1\r\n-ERR wrong amount of args\r\n";
+      send(cli_fd, err, strlen(err), 0);
+    } else {
+      Cmd resp_cmd = {0};
+      Arg arg = {0};
+      char resp_buf[MAXDATASIZE] = {0};
+      long val = shget(ctx.num_map, cmd.args[1].value);
+
+      arg.type = NUMBER;
+      arg.size = sizeof(long);
+      memcpy(arg.value, &val, sizeof(long));
+
+      arrput(resp_cmd.args, arg);
+
+      cmd_serialize(&resp_cmd, resp_buf, MAXDATASIZE);
+
+      send(cli_fd, resp_buf, strlen(resp_buf), 0);
+    }
+  }
+
   arrfree(cmd.args);
 }
 
-void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd) {
+void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd,
+                       Context ctx) {
   struct sockaddr_storage addr;
   socklen_t addr_len = sizeof(addr);
 
@@ -110,7 +152,7 @@ void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd) {
     *p_max_fd = conn_fd;
   }
 
-  handle_existing_client(conn_fd, p_master);
+  handle_existing_client(conn_fd, p_master, ctx);
 }
 
 int main(void) {
@@ -123,6 +165,9 @@ int main(void) {
   FD_SET(serverfd, &master);
 
   int max_fd = serverfd;
+
+  Context ctx = {0};
+  sh_new_strdup(ctx.num_map);
 
   for (;;) {
     FD_COPY(&master, &read_fds);
@@ -138,9 +183,9 @@ int main(void) {
       }
 
       if (i == serverfd) {
-        handle_new_client(serverfd, &master, &max_fd);
+        handle_new_client(serverfd, &master, &max_fd, ctx);
       } else {
-        handle_existing_client(i, &master);
+        handle_existing_client(i, &master, ctx);
       }
     }
   }

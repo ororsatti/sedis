@@ -25,4 +25,7 @@ bool cmd_parse(char *str, size_t str_len, Cmd *out_cmd);
 bool cmd_serialize(Cmd *src, char *dst, size_t dst_len);
 bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len);
 
+long arg_number_value(Arg *arg);
+char *arg_string_value(Arg *arg);
+
 #endif // CMD_H
