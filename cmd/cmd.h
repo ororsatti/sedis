@@ -11,8 +11,6 @@
 #define SET_CMD_TYPE "SET"
 #define GET_CMD_TYPE "GET"
 
-typedef enum CmdTypes { UNKNOWN = 0, PING, SET, GET } CmdTypes;
-
 typedef enum ArgTypes { NUMBER = 0, STRING } ArgTypes;
 typedef struct Arg {
   ArgTypes type;
@@ -23,10 +21,11 @@ typedef struct Arg {
 typedef dyarray_type(Arg) Args;
 
 typedef struct Cmd {
-  CmdTypes type;
   Args args;
 } Cmd;
 
 bool cmd_parse(char *str, size_t str_len, Cmd *out_cmd);
+bool cmd_serialize(Cmd *src, char *dst, size_t dst_len);
+bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len);
 
 #endif // CMD_H

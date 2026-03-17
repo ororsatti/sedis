@@ -10,11 +10,11 @@ run-server: build-server
 build-server:
 	rm -f $(SERVER_EXEC)
 	mkdir -p dist
-	gcc server/*.c -o $(SERVER_EXEC) -pedantic -Werror -g
+	gcc cmd/*.c server/*.c -o $(SERVER_EXEC) -pedantic -Werror -g
 
 build-client:
 	rm -f $(CLIENT_EXEC)
 	mkdir -p dist
-	gcc client/*.c -o $(CLIENT_EXEC) -pedantic -Werror -g
+	gcc cmd/*.c client/*.c -o $(CLIENT_EXEC) -pedantic -Werror -g
 
 

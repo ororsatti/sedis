@@ -1,12 +1,14 @@
 #include "cmd.h"
-#include "../thirdparty/dyarray.h"
 #include <_string.h>
 #include <assert.h>
 #include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define MAXDATASIZE 1024
+#define CLRF "\r\n"
 #define CLRF_LEN 2
 
 int _cmd_get_next_token(char *str, size_t str_len, char **cursor, char *tok,
@@ -52,13 +54,14 @@ int _cmd_parse_int(char *str, size_t str_len) {
   return val;
 }
 
-CmdTypes _cmd_get_type(char *cmd, size_t cmd_len) {
-  if (strncmp(cmd, PING_CMD_TYPE, cmd_len) == 0) {
-    return PING;
-  }
+long _arg_number_value(Arg *arg) {
+  long val = -1;
+  memcpy(&val, arg->value, arg->size);
 
-  return UNKNOWN;
+  return val;
 }
+
+char *_arg_string_value(Arg *arg) { return arg->value; }
 
 bool cmd_parse(char *src, size_t src_len, Cmd *out_cmd) {
   char tok[MAX_TOK_SIZE] = {0};
@@ -69,26 +72,7 @@ bool cmd_parse(char *src, size_t src_len, Cmd *out_cmd) {
     return false;
   }
 
-  // subtract 1 to account for cmd name
-  int argc = _cmd_parse_int(&tok[1], rv - 1) - 1;
-  printf("argcp: %s, argc:%d\n", tok, argc);
-
-  rv = _cmd_get_next_token(src, strlen(src), &cursor, tok, sizeof(tok));
-  if (rv <= 0) {
-    return false;
-  }
-
-  int cmd_tok_size = _cmd_parse_int(&tok[1], rv - 1);
-  char cmd[MAX_TOK_SIZE] = {0};
-  rv = _cmd_read_bulk_str(&cursor, cmd, sizeof(cmd), cmd_tok_size);
-  if (rv <= 0) {
-    return false;
-  }
-
-  out_cmd->type = _cmd_get_type(cmd, rv);
-  if (out_cmd->type == UNKNOWN) {
-    return false;
-  }
+  int argc = _cmd_parse_int(&tok[1], rv - 1);
 
   for (int i = 0; i < argc; ++i) {
     rv = _cmd_get_next_token(src, strlen(src), &cursor, tok, sizeof(tok));
@@ -132,43 +116,84 @@ bool cmd_parse(char *src, size_t src_len, Cmd *out_cmd) {
   return true;
 }
 
-#define MSG "*4\r\n$4\r\nPING\r\n:123\r\n$5\r\nABCDE\r\n+TEST\r\n"
+bool _arg_serialize(Arg *arg, char *dst, size_t dst_len) {
+  char buf[MAXDATASIZE] = {0};
 
-const char *cmd_type_to_string(CmdTypes type) {
-  switch (type) {
-  case UNKNOWN:
-    return "UNKNOWN";
-  case PING:
-    return "PING";
-  default:
-    return "INVALID";
+  int rv = 0;
+  if (arg->type == NUMBER) {
+    rv = snprintf(buf, sizeof(buf), ":%ld%s", _arg_number_value(arg), CLRF);
+  } else {
+    rv = snprintf(buf, sizeof(buf), "$%zu%s%s%s", arg->size, CLRF, arg->value,
+                  CLRF);
   }
+  if (rv < 0) {
+    return false;
+  }
+
+  if (strlcat(dst, buf, dst_len) >= dst_len) {
+    return false;
+  }
+
+  return true;
 }
-long _arg_number_value(Arg *arg) {
-  long val = -1;
-  memcpy(&val, arg->value, arg->size);
 
-  return val;
-}
+bool cmd_serialize(Cmd *src, char *dst, size_t dst_len) {
 
-char *_arg_string_value(Arg *arg) { return arg->value; }
+  char buf[MAXDATASIZE] = {0};
+  snprintf(buf, sizeof(buf), "%s%zu%s", "*", src->args.size, CLRF);
 
-int main(void) {
-  Cmd out_cmd = {0};
-  cmd_parse(MSG, sizeof(MSG), &out_cmd);
-  printf("CMD: %s\n", cmd_type_to_string(out_cmd.type));
+  if (strlcat(dst, buf, dst_len) >= dst_len) {
+    return false;
+  }
 
-  for (int i = 0; i < out_cmd.args.size; ++i) {
-    Arg arg = out_cmd.args.items[i];
-
-    if (arg.type == NUMBER) {
-      printf("ARG[%d]: %ld\n", i, _arg_number_value(&arg));
+  for (size_t i = 0; i < src->args.size; ++i) {
+    if (!_arg_serialize(&src->args.items[i], dst, dst_len)) {
+      return false;
     }
+  }
+
+  return true;
+}
+
+bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len) {
+  for (size_t i = 0; i < cmd->args.size; ++i) {
+    Arg arg = cmd->args.items[i];
 
     if (arg.type == STRING) {
-      printf("ARG[%d]: %s\n", i, _arg_string_value(&arg));
+      if (strlcat(buf, _arg_string_value(&arg), buf_len) >= buf_len) {
+        return false;
+      }
+    } else if (arg.type == NUMBER) {
+      snprintf(buf, buf_len, "%s%ld", buf, _arg_number_value(&arg));
     }
+    strlcat(buf, " ", buf_len);
   }
 
-  dyarray_free(out_cmd.args);
+  return true;
 }
+
+// int main(void) {
+//   Cmd cmd = {0};
+//   Arg arg = {0};
+//
+//   arg.size = strlcpy(arg.value, "SET", MAX_TOK_SIZE);
+//   arg.type = STRING;
+//   dyarray_push(&cmd.args, arg);
+//
+//   arg.size = strlcpy(arg.value, "goofy", MAX_TOK_SIZE);
+//   arg.type = STRING;
+//   dyarray_push(&cmd.args, arg);
+//
+//   long val = 123;
+//   memcpy(arg.value, &val, sizeof(long));
+//   arg.size = sizeof(long);
+//   arg.type = NUMBER;
+//   dyarray_push(&cmd.args, arg);
+//
+//   char buf[MAXDATASIZE] = {0};
+//   cmd_printable(&cmd, buf, MAXDATASIZE);
+//
+//   printf("%s\n", buf);
+//
+//   return 0;
+// }

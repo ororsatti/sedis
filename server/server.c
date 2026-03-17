@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "cmd.h"
+#include "../cmd/cmd.h"
 
 #define PORT "6378"
 #define BACKLOG 5
@@ -84,10 +84,11 @@ void handle_existing_client(int cli_fd, fd_set *p_master) {
     perror("parse cmd");
     return;
   }
-  printf("CMD TYPE: %d, ARGS COUNT: %zu\n", cmd.type, cmd.args.size);
+  printf("CMD TYPE: %s, ARGS COUNT: %zu\n", cmd.args.items[0].value,
+         cmd.args.size);
 
-  if (cmd.type == PING) {
-    char *pong = "+PONG\r\n";
+  if (strncmp(cmd.args.items[0].value, "PING", cmd.args.items[0].size) == 0) {
+    char *pong = "*1\r\n+PONG\r\n";
     send(cli_fd, pong, strlen(pong), 0);
   }
 }
