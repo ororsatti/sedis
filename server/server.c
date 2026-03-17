@@ -1,3 +1,4 @@
+#include "../thirdparty/stb_ds.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -81,16 +82,17 @@ void handle_existing_client(int cli_fd, fd_set *p_master) {
 
   Cmd cmd = {0};
   if (!cmd_parse(buf, nbytes, &cmd)) {
+    arrfree(cmd.args);
     perror("parse cmd");
     return;
   }
-  printf("CMD TYPE: %s, ARGS COUNT: %zu\n", cmd.args.items[0].value,
-         cmd.args.size);
 
-  if (strncmp(cmd.args.items[0].value, "PING", cmd.args.items[0].size) == 0) {
+  if (strncmp(cmd.args[0].value, "PING", cmd.args[0].size) == 0) {
     char *pong = "*1\r\n+PONG\r\n";
     send(cli_fd, pong, strlen(pong), 0);
   }
+
+  arrfree(cmd.args);
 }
 
 void handle_new_client(int server_fd, fd_set *p_master, int *p_max_fd) {

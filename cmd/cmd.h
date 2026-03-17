@@ -1,7 +1,6 @@
 #ifndef CMD_H
 #define CMD_H
 
-#include "../thirdparty/dyarray.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -18,10 +17,8 @@ typedef struct Arg {
   size_t size;
 } Arg;
 
-typedef dyarray_type(Arg) Args;
-
 typedef struct Cmd {
-  Args args;
+  Arg *args;
 } Cmd;
 
 bool cmd_parse(char *str, size_t str_len, Cmd *out_cmd);

@@ -1,5 +1,6 @@
 #include "cmd.h"
-#include <_string.h>
+#define STB_DS_IMPLEMENTATION
+#include "../thirdparty/stb_ds.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stddef.h>
@@ -110,7 +111,7 @@ bool cmd_parse(char *src, size_t src_len, Cmd *out_cmd) {
     }
     }
 
-    dyarray_push(&out_cmd->args, arg);
+    arrput(out_cmd->args, arg);
   }
 
   return true;
@@ -140,14 +141,14 @@ bool _arg_serialize(Arg *arg, char *dst, size_t dst_len) {
 bool cmd_serialize(Cmd *src, char *dst, size_t dst_len) {
 
   char buf[MAXDATASIZE] = {0};
-  snprintf(buf, sizeof(buf), "%s%zu%s", "*", src->args.size, CLRF);
+  snprintf(buf, sizeof(buf), "%s%zu%s", "*", arrlen(src->args), CLRF);
 
   if (strlcat(dst, buf, dst_len) >= dst_len) {
     return false;
   }
 
-  for (size_t i = 0; i < src->args.size; ++i) {
-    if (!_arg_serialize(&src->args.items[i], dst, dst_len)) {
+  for (size_t i = 0; i < arrlen(src->args); ++i) {
+    if (!_arg_serialize(&src->args[i], dst, dst_len)) {
       return false;
     }
   }
@@ -156,8 +157,8 @@ bool cmd_serialize(Cmd *src, char *dst, size_t dst_len) {
 }
 
 bool cmd_printable(Cmd *cmd, char *buf, size_t buf_len) {
-  for (size_t i = 0; i < cmd->args.size; ++i) {
-    Arg arg = cmd->args.items[i];
+  for (size_t i = 0; i < arrlen(cmd->args); ++i) {
+    Arg arg = cmd->args[i];
 
     if (arg.type == STRING) {
       if (strlcat(buf, _arg_string_value(&arg), buf_len) >= buf_len) {
