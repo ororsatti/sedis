@@ -1,15 +1,21 @@
-# TODO
+# Sedis - (S)imple R(edis)
 
-1. Support message types
+A programming practice to learn TCP and better learn C.
+
+## Architecture:
+1. Simple TCP server.
+2. RESP parser.
+3. Map as simple cache.
+
+
+## Supports: 
+  - `PING`
   - `SET <key> <value>`
   - `GET <key>`
+
+## Planning to supprt:
   - `DEL <key1> <key2> ...`
   - `SCAN <cursor> <size>`
   - `KEYS <pattern>`
-
-2. Connect over TCP.
-
-3. Use RESP for communication.
-4. Client and server implementation
 
 
