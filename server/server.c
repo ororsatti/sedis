@@ -18,7 +18,7 @@
 
 typedef struct Num_Map {
   char *key;
-  long value;
+  Arg value;
 } Num_Map;
 
 typedef struct Context {
@@ -105,7 +105,7 @@ void handle_existing_client(int cli_fd, fd_set *p_master, Context ctx) {
       char *err = "*1\r\n-ERR wrong amount of args\r\n";
       send(cli_fd, err, strlen(err), 0);
     } else {
-      shput(ctx.num_map, cmd.args[1].value, arg_number_value(&cmd.args[2]));
+      shput(ctx.num_map, cmd.args[1].value, cmd.args[2]);
       char *resp = "*1\r\n+OK\r\n";
       send(cli_fd, resp, strlen(resp), 0);
     }
@@ -117,16 +117,10 @@ void handle_existing_client(int cli_fd, fd_set *p_master, Context ctx) {
       send(cli_fd, err, strlen(err), 0);
     } else {
       Cmd resp_cmd = {0};
-      Arg arg = {0};
       char resp_buf[MAXDATASIZE] = {0};
-      long val = shget(ctx.num_map, cmd.args[1].value);
+      Arg val = shget(ctx.num_map, cmd.args[1].value);
 
-      arg.type = NUMBER;
-      arg.size = sizeof(long);
-      memcpy(arg.value, &val, sizeof(long));
-
-      arrput(resp_cmd.args, arg);
-
+      arrput(resp_cmd.args, val);
       cmd_serialize(&resp_cmd, resp_buf, MAXDATASIZE);
 
       send(cli_fd, resp_buf, strlen(resp_buf), 0);
