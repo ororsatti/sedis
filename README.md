@@ -17,9 +17,9 @@ A programming practice to learn TCP and better learn C.
   - `PING`
   - `SET <key> <value>`
   - `GET <key>`
+  - `del <key1> <key2> ...`
 
 ## Planning to supprt:
-  - `DEL <key1> <key2> ...`
   - `SCAN <cursor> <size>`
   - `KEYS <pattern>`
 
