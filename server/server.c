@@ -127,6 +127,21 @@ void handle_existing_client(int cli_fd, fd_set *p_master, Context ctx) {
     }
   }
 
+  if (strncmp(cmd.args[0].value, "DEL", cmd.args[0].size) == 0) {
+    if (arrlen(cmd.args) < 2) {
+      char *err = "*1\r\n-ERR wrong amount of args\r\n";
+      send(cli_fd, err, strlen(err), 0);
+    } else {
+
+      for (size_t i = 0; i < arrlen(cmd.args); ++i) {
+        shdel(ctx.num_map, cmd.args[i].value);
+      }
+
+      char *resp = "*1\r\n+OK\r\n";
+      send(cli_fd, resp, strlen(resp), 0);
+    }
+  }
+
   arrfree(cmd.args);
 }
 
